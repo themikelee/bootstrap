@@ -15,7 +15,8 @@ describe('tabs', function() {
           '<pane heading="First Tab">' +
             'first content is {{first}}' +
           '</pane>' +
-          '<pane heading="Second Tab">' +
+          '<pane>' +
+            '<pane-heading><b>Hello</b>!</pane-heading>' +
             'second content is {{second}}' +
           '</pane>' +
         '</tabs>' +
@@ -27,12 +28,12 @@ describe('tabs', function() {
   }));
 
 
-  it('should create clickable titles', inject(function($compile, $rootScope) {
+  it('should create clickable titles', inject(function($compile, $rootScope, $timeout) {
     var titles = elm.find('ul.nav-tabs li a');
 
     expect(titles.length).toBe(2);
-    expect(titles.eq(0).text()).toBe('First Tab');
-    expect(titles.eq(1).text()).toBe('Second Tab');
+    expect(titles.eq(0).text().trim()).toBe('First Tab');
+    expect(titles.eq(1).children().html()).toBe('<b>Hello</b>!');
   }));
 
 
@@ -255,3 +256,55 @@ describe('remove tabs', function() {
 
 });
 
+describe('tabs pane-heading', function() {
+  beforeEach(module('ui.bootstrap.tabs'));
+  beforeEach(module('template/tabs/tabs.html', 'template/tabs/pane.html'));
+
+  var $compile, elm, scope;
+  beforeEach(inject(function(_$compile_, $rootScope) {
+    $compile = _$compile_;
+    scope = $rootScope.$new();
+  }));
+
+  function makeTabsWithHeading(headingHtml) {
+    elm = $compile(
+      '<tabs>' +
+        '<pane>' + headingHtml + '</pane>' +
+      '</tabs>'
+    )(scope);
+    scope.$apply();
+  }
+    
+
+  it('should work with pane-heading class', function() {
+    makeTabsWithHeading('<div class="pane-heading"><b>Apples!</b></div>');
+    var titles = elm.find('ul.nav-tabs li a');
+    expect(titles.length).toBe(1);
+    expect(titles.eq(0).children().html()).toBe('<b>Apples!</b>');
+  });
+
+  it('should work with pane-heading attribute', function() {
+    makeTabsWithHeading('<div pane-heading><b>Pizza!</b></div>');
+    var titles = elm.find('ul.nav-tabs li a');
+    expect(titles.length).toBe(1);
+    expect(titles.eq(0).children().html()).toBe('<b>Pizza!</b>');
+  });
+  
+  it('should work with pane-heading element', function() {
+    makeTabsWithHeading('<pane-heading><b>Coffee!</b></pane-heading>');
+    var titles = elm.find('ul.nav-tabs li a');
+    expect(titles.length).toBe(1);
+    expect(titles.eq(0).children().html()).toBe('<b>Coffee!</b>');
+  });
+
+  describe('heading attribute and pane-heading child element defined', function() { 
+    it('should choose the pane-heading element', function() { 
+      elm = $compile('<tabs><pane heading="one">' + 
+                     '<pane-heading>two</pane-heading>' +
+                     '</pane></tabs>')(scope);
+      scope.$apply();
+      var titles = elm.find('ul.nav-tabs li a');
+      expect(titles.eq(0).children().html()).toBe('two');
+    });
+  });
+});

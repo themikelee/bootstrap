@@ -51,54 +51,53 @@ angular.module('ui.bootstrap.tabs', [])
     scope: {
       heading: '@'
     },
-    link: function(scope, element, attrs, tabsCtrl) {
-      var getSelected, setSelected;
-      scope.selected = false;
-      if (attrs.active) {
-        getSelected = $parse(attrs.active);
-        setSelected = getSelected.assign;
-        scope.$watch(
-          function watchSelected() {return getSelected(scope.$parent);},
-          function updateSelected(value) {scope.selected = value;}
-        );
-        scope.selected = getSelected ? getSelected(scope.$parent) : false;
-      }
-      scope.$watch('selected', function(selected) {
-        if(selected) {
-          tabsCtrl.select(scope);
+    compile: function(element, attrs, transclude) {
+      return function postLink(scope, element, attrs, tabsCtrl) {
+        var getSelected, setSelected;
+        scope.selected = false;
+        if (attrs.active) {
+          getSelected = $parse(attrs.active);
+          setSelected = getSelected.assign;
+          scope.$watch(
+            function watchSelected() {return getSelected(scope.$parent);},
+            function updateSelected(value) {scope.selected = value;}
+          );
+          scope.selected = getSelected ? getSelected(scope.$parent) : false;
         }
-        if(setSelected) {
-          setSelected(scope.$parent, selected);
-        }
-      });
+        scope.$watch('selected', function(selected) {
+          if(selected) {
+            tabsCtrl.select(scope);
+          }
+          if(setSelected) {
+            setSelected(scope.$parent, selected);
+          }
+        });
 
-      tabsCtrl.addPane(scope);
-      scope.$on('$destroy', function() {
-        tabsCtrl.removePane(scope);
-      });
-    }
-  };
-}])
-.directive('paneHeading', ['$timeout', '$compile', function($timeout, $compile) {
-  return {
-    restrict: 'EA',
-    transclude: true, //We'll take the contents of this and use it as the heading
-    template: '', //basically remove this element
-    replace: true,
-    compile: function(elm, attrs, transclude) {
-      return function postLink(scope, elm, attrs) {
-        // If we do `require: '^pane' or require: 'pane' it simply cannot find
-        // the pane controller. Probably because the <pane-heading> element is
-        // compiled before its parent <pane> element (?)
-        // I also tried doing `terminal: true` on the paneHeading, but that
-        // didn't make any difference since terminal really only effects
-        // the order of directives-on-same-element compilation.
-        //
-        // For now, to get around the problem we have a $timeout so the paneHeading
-        // can wait until the pane compiles.
-        $timeout(function() { 
-          var pane = elm.parent().scope();
-          pane.headingElement = transclude(scope);
+        tabsCtrl.addPane(scope);
+        scope.$on('$destroy', function() {
+          tabsCtrl.removePane(scope);
+        });
+        
+        // Allow child 'pane-heading' (class, attribute, or element)
+        // to define a pane heading with HTML in it.
+        // We don't use a child directive the child <pane-heading>
+        // directive wasn't able to find a parent pane controller (?)
+        transclude(scope.$parent, function(clone) {
+          // The clone is an angular collection of all the <pane> element's children,
+          // so we forEach it
+          angular.forEach(clone, function(child) {
+            //If child is an element, go forward (sometimes it can just be text)
+            if (child.tagName) { 
+              var $child = angular.element(child);
+              if ($child[0].tagName.toLowerCase() == "pane-heading" ||
+                  $child.hasClass("pane-heading") ||
+                  $child.attr("pane-heading") !== undefined) {
+                scope.headingElement = $child;
+                $child.remove();
+              }
+            }
+          });
+          element.append(clone);
         });
       };
     }
