@@ -43,6 +43,13 @@ angular.module('ui.bootstrap.tabs', [])
     scope:{
       heading:'@'
     },
+    controller: function($scope) {
+      // The pane-heading directive calls this function to attach its transcluded contents to the
+      // scope of the pane, which will be used in the tabs template by the pane-transclude directive
+      this.addHeadingElement = function(heading) {
+        $scope.headingElement = heading;
+      };
+    },
     link: function(scope, element, attrs, tabsCtrl) {
       var getSelected, setSelected;
       scope.selected = false;
@@ -70,6 +77,38 @@ angular.module('ui.bootstrap.tabs', [])
       });
     },
     templateUrl: 'template/tabs/pane.html',
-    replace: true
+    replace: false
   };
-}]);
+}])
+
+// Define a heading for this panel that can include HTML and directives
+// We transclude the contents and then effectively remove the element
+.directive('paneHeading', function() {
+  return {
+    restrict: 'EA',
+    transclude: true,
+    template: '',
+    replace: true,
+    require: '^pane',
+    compile: function(element, attrs, transclude) {
+      return function link(scope, element, attrs, controller) {
+        controller.addHeadingElement(transclude(scope));
+      };
+    }
+  };
+})
+
+// Transclude the provided elements, replacing the contents of this element.
+.directive('paneTransclude', function() {
+  return {
+    require: '^tabs',
+    link: function(scope, element, attrs, controller) {
+      scope.$watch(attrs.paneTransclude, function(heading) {
+        if ( heading ) {
+          element.html('');
+          element.append(heading);
+        }
+      });
+    }
+  };
+});
