@@ -8,7 +8,7 @@ module.exports = function(grunt) {
     ngversion: '1.0.5',
     bsversion: '2.3.1',
     srcModules: [], //to be filled in by find-modules task
-    tplModules: [], 
+    tplModules: [],
     pkg:'<json:package.json>',
     dist: 'dist',
     filename: 'ui-bootstrap',
@@ -181,7 +181,7 @@ module.exports = function(grunt) {
     });
 
     var templateFiles = grunt.file.expand("template/**/*.html.js");
-    
+
     grunt.file.write(
       'dist/index.html',
       grunt.template.process(grunt.file.read('misc/demo-template.html'), {
@@ -195,7 +195,7 @@ module.exports = function(grunt) {
         bsversion: grunt.config('bsversion')
       })
     );
-    
+
     grunt.file.expand('misc/demo-assets/*.*').forEach(function(path) {
       grunt.file.copy(path, 'dist/assets/' + path.replace('misc/demo-assets/',''));
     });
@@ -267,6 +267,53 @@ module.exports = function(grunt) {
     var options = ['--no-single-run', '--auto-watch'].concat(this.args);
     runTestacular('start', options);
   });
-  
+
+  grunt.registerTask('changelog', 'generates changelog markdown from git commits', function () {
+
+    var changeFrom = this.args[0], changeTo = this.args[1] || 'HEAD';
+
+    var done = grunt.task.current.async();
+    var child = grunt.utils.spawn({
+      cmd:process.platform === 'win32' ? 'git.cmd' : 'git',
+      args:['log', changeFrom + '..' + changeTo, '--oneline']
+    }, function (err, result, code) {
+
+      var changelog = {
+        chore: {}, demo: {}, docs: {}, feat: {}, fix: {}, refactor: {}, style: {}, test: {}
+      };
+
+      var COMMIT_MSG_REGEXP = /^(chore|demo|docs|feat|fix|refactor|style|test)\((.+)\):? (.+)$/;
+      var gitlog = ('' + result).split('\n').reverse();
+
+      if (code) {
+        done(false);
+      } else {
+        
+        gitlog.forEach(function (logItem) {
+          var sha1 = logItem.slice(0, 7);
+          var fullMsg = logItem.slice(8);
+
+          var msgMatches = fullMsg.match(COMMIT_MSG_REGEXP);
+          var changeType = msgMatches[1];
+          var directive = msgMatches[2];
+          var directiveMsg = msgMatches[3];
+
+          if (!changelog[changeType][directive]) {
+            changelog[changeType][directive] = [];
+          }
+          changelog[changeType][directive].push({sha1:sha1, msg:directiveMsg});
+        });
+
+        console.log(grunt.template.process(grunt.file.read('misc/changelog.tpl.md'), {
+          changelog: changelog,
+          today: grunt.template.today('yyyy-mm-dd'),
+          version : grunt.config('pkg.version')
+        }));
+
+        done();
+      }
+    });
+  });
+
   return grunt;
 };
