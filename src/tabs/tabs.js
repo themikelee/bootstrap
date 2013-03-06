@@ -40,23 +40,21 @@ angular.module('ui.bootstrap.tabs', [])
   };
 }])
 
-.controller('PaneController', ['$scope', function($scope) {
-}])
-
-.directive('pane', ['$parse', function($parse) {
+.directive('pane', ['$parse', '$compile', function($parse, $compile) {
   return {
     require: '^tabs',
     restrict: 'EA',
     transclude: true,
     templateUrl: 'template/tabs/pane.html',
     replace: true,
+    controller: function() {}, //Empty controller so pane can be required
     scope: {
       heading: '@'
     },
-    controller: 'PaneController',
     compile: function(elm, attrs, transclude) {
       return function link(scope, elm, attrs, tabsCtrl) {
 
+        //Bind to `selected` attribute, if it exists
         var getSelected, setSelected;
         scope.selected = false;
         if (attrs.active) {
@@ -77,13 +75,16 @@ angular.module('ui.bootstrap.tabs', [])
           }
         });
 
-        scope.paneContent = transclude(scope, angular.noop);
+        //Set paneContent so paneContentTransclude can access
+        //Transclude on parent scope, not our new isolated scope
+        scope.paneContent = transclude(scope.$parent, angular.noop);
 
         tabsCtrl.addPane(scope);
         scope.$on('$destroy', function() {
           tabsCtrl.removePane(scope);
         });
 
+        //Set select function for the markup to use
         scope.select = function() {
           tabsCtrl.select(scope);
         };
@@ -109,15 +110,15 @@ angular.module('ui.bootstrap.tabs', [])
   };
 }])
 
-.directive('paneHeadingTransclude', [function() {
+.directive('paneHeadingTransclude', ['$compile', function($compile) {
   return {
     restrict: 'A',
     require: '^pane',
     link: function(scope, elm, attrs, paneCtrl) {
-      scope.$watch('paneHeading', function(html) {
-        if (html) {
+      scope.$parent.$watch('paneHeading', function(heading) {
+        if (heading) {
           elm.html('');
-          elm.append(html);
+          elm.append(heading);
         }
       });
     }
